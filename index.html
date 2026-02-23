@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clothing Repo Browser</title>
+    <style>
+        body {
+            background-color: white;
+            color: black;
+            font-family: Arial, sans-serif;
+        }
+        ul {
+            list-style-type: none;
+        }
+        a {
+            cursor: pointer;
+            text-decoration: none;
+            color: black;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        img.icon {
+            width: 20px;
+            vertical-align: middle;
+            margin-right: 5px;
+        }
+        img.yt {
+            width: 20px;
+            vertical-align: middle;
+            margin-left: 8px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>NCH Clothing Repository</h1>
+
+<hr>
+
+<ul id="repo"></ul>
+
+<script>
+const username = "person503";
+const repo = "clothing";
+
+const folderVideos = {
+    "2.22.2026": "https://www.youtube.com/watch?v=nqf1CytYr78"
+};
+
+async function getContents(path = "") {
+    const response = await fetch(
+        `https://api.github.com/repos/${username}/${repo}/contents/${path}`
+    );
+    return await response.json();
+}
+
+async function forceDownload(url, filename) {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    window.URL.revokeObjectURL(blobUrl);
+}
+
+function getFileIcon(filename) {
+    if (filename.endsWith(".pdn")) {
+        return "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_irrKPbSIs5WiIPJqbK3RAUxUvgtNBGhd6g&s";
+    }
+    if (filename.endsWith(".png")) {
+        return "https://cdn.worldvectorlogo.com/logos/png-1.svg";
+    }
+    return "";
+}
+
+async function createFolderElement(item) {
+    const li = document.createElement("li");
+    const folderLink = document.createElement("a");
+    folderLink.textContent = "📁 " + item.name;
+
+    const childContainer = document.createElement("ul");
+    childContainer.style.display = "none";
+
+    folderLink.addEventListener("click", async function (e) {
+        e.preventDefault();
+
+        if (childContainer.childElementCount === 0) {
+            const contents = await getContents(item.path);
+
+            for (const child of contents) {
+                if (child.type === "dir") {
+                    const folderEl = await createFolderElement(child);
+                    childContainer.appendChild(folderEl);
+                } else {
+                    const fileLi = document.createElement("li");
+
+                    const iconUrl = getFileIcon(child.name);
+                    if (iconUrl) {
+                        const icon = document.createElement("img");
+                        icon.src = iconUrl;
+                        icon.className = "icon";
+                        fileLi.appendChild(icon);
+                    }
+
+                    const fileLink = document.createElement("a");
+                    fileLink.textContent = child.name;
+
+                    fileLink.addEventListener("click", function (e) {
+                        e.preventDefault();
+                        forceDownload(child.download_url, child.name);
+                    });
+
+                    fileLi.appendChild(fileLink);
+                    childContainer.appendChild(fileLi);
+                }
+            }
+        }
+
+        childContainer.style.display =
+            childContainer.style.display === "none" ? "block" : "none";
+    });
+
+    li.appendChild(folderLink);
+
+    if (folderVideos[item.name]) {
+        const ytLink = document.createElement("a");
+        ytLink.href = folderVideos[item.name];
+        ytLink.target = "_blank";
+
+        const ytIcon = document.createElement("img");
+        ytIcon.src = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRyz2x5NZXXTqNn4DDxMBZwSaSvWQDT9v2l4Q&s";
+        ytIcon.className = "yt";
+
+        ytLink.appendChild(ytIcon);
+        li.appendChild(ytLink);
+    }
+
+    li.appendChild(childContainer);
+
+    return li;
+}
+
+async function loadRoot() {
+    const repoElement = document.getElementById("repo");
+    const contents = await getContents("");
+
+    for (const item of contents) {
+        if (item.type === "dir") {
+            const folderEl = await createFolderElement(item);
+            repoElement.appendChild(folderEl);
+        } else {
+            const li = document.createElement("li");
+
+            const iconUrl = getFileIcon(item.name);
+            if (iconUrl) {
+                const icon = document.createElement("img");
+                icon.src = iconUrl;
+                icon.className = "icon";
+                li.appendChild(icon);
+            }
+
+            const fileLink = document.createElement("a");
+            fileLink.textContent = item.name;
+
+            fileLink.addEventListener("click", function (e) {
+                e.preventDefault();
+                forceDownload(item.download_url, item.name);
+            });
+
+            li.appendChild(fileLink);
+            repoElement.appendChild(li);
+        }
+    }
+}
+
+loadRoot();
+</script>
+
+</body>
+</html>
